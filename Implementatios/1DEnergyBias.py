@@ -1,4 +1,4 @@
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
 import pygame
 
@@ -45,7 +45,7 @@ def redraw(lattice):
 
 ### PYGAME IMPLEMENTATION
 
-n = 1000
+n = 300
 epsilon = 1e-7
 J = 1
 T = 0.01
