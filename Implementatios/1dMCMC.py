@@ -3,8 +3,7 @@ import numpy as np
 import pygame
 
 '''
-This file implements the 2d ising model, with the sole focus on generating a state which obeys the boltzmann distribution
-This is an initial draft algorithm which is not meant to be computationally efficient
+This file implements the 1d ising model.
 
 algorithm outline:
 Compute the expectation value of a property A, across the space of states with a boltzmann distribution:
