@@ -50,6 +50,9 @@ epsilon = 1e-7
 J = 1
 T = 0.01
 b = 1/T
+Na = 6.022e23 # avogadros
+kB = 1.3806e-23 # boltzmann constant
+R = 8.314 # Na * kB # gas constant 8.314
 
 class System():
     def __init__(self):
@@ -148,3 +151,5 @@ while running:
         redraw(sys.L)
         # print(sys.pidist, sys.E, sys.pi, np.sum(sys.L))
     i += 1
+
+"importance sampling"
