@@ -21,17 +21,15 @@ for iter:
 
 '''
 
-algorithm = '1D MCMC Sampling'
-
 # Scientific constants
 Na = 6.022e23
-kB = 1.3806e-23
+kB = 1.3806e-23 # J/K
 R = 8.314 # Na * kB
 
 # Hyperparameters
 n = 830     # number of lattice sites
-J = 1       # coupling constant
-T = 1
+J = 1     # coupling constant
+T = 1000
 
 # Useful variables
 b = 1/T
@@ -41,50 +39,57 @@ epsilon = 1e-7
 print('Expected magnetisation for a 1-d lattice: 0')
 print('Expected average energy for the lattice (N * -J tanh(b*J)): {}'.format(-n*J*np.tanh(b*J)))
 
-## Start of pygame implementation
-'''draw lattice points with -1 spin grey, +1 as cyan'''
-bg_color = (25, 25, 25) # (250, 250, 250)
-ScreenWidth, ScreenHeight = ScreenDims = (1100, 650)  # (1800, 920)
-text_height_space = 20
-win = pygame.display.set_mode(ScreenDims)
-pygame.display.set_caption('1D-Ising model | ' + algorithm + ' Implementation')
-pygame.display.set_icon(pygame.image.load('imgs/molecules.png'))
-
 def Poll_Events():
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             global running
             running = False
 
-def redraw(lattice):
-    win.fill(bg_color)
 
-    # draw spins
-    colours = [0, (0, 50, 50), (163, 0, 30)]
-    for i, spin in enumerate(lattice):
-        r=10
-        w = int((r+2*i*r)/ScreenWidth)
-        nw = (ScreenWidth - 2*r)/(2*r)
-        x = r+2*r*(i-w*nw-w)
-        pygame.draw.circle(win, colours[spin], (int(x), 4*r*(1+w)), r)
-    pygame.display.update()
 # End of pygame implementation
 
 
 class System():
+    # biased initialization, text box
+    algorithm = '1D MCMC Sampling'
+
     cache_limit = int(1e+6)  # Maximum size of cache before reset
 
+    pygame.init()
+    pygame.display.set_caption('1D-Ising model | ' + algorithm + ' Implementation')
+    pygame.display.set_icon(pygame.image.load('imgs/molecules.png'))
+    font_local = pygame.font.SysFont('bahnschrift', 16)
+    bg_color = (25, 25, 25) # (250, 250, 250)
+    ScreenWidth, ScreenHeight = ScreenDims = (1100, 650)  # (1800, 920)
+    win = pygame.display.set_mode(ScreenDims)
+    spin_colours = [0, (0, 50, 50), (163, 0, 30)]  # draw lattice points with -1 spin grey, +1 as cyan
+
     def __init__(self):
-        # Initialize lattice points, [1,1,-1,1,-1,...] randomly
+        # System variables:
+
+        # Initialize lattice points, [1,1,-1,1,-1,...] randomly (for now)
         self.L = np.random.randint(0, 2, size=n) * 2 - 1
+
         # initialize variables for each parameter
         self.E0 = self.get_Ei()
-        self.sE = 0 # running sum
-        self.Ebar = 0 # will be updated with each cache reset.
-        self.E = self.E0 # will be stored and updated with each iteration to save compute
+        self.sE = 0         # running sum for each epoch
+        self.Ebar = 0       # will be updated with each cache reset (end of each epoch).
+        self.E = self.E0    # will be stored and changed by dE with each iteration to save compute
 
         self.sB = 0
         self.Bbar = 0
+
+        # other variables
+        self.epoch = 0
+        self.Rects = []
+        for i, spin in enumerate(self.L):
+            a = 20
+            r = 10
+            w = int((r + 2 * i * r) / System.ScreenWidth)
+            nw = (System.ScreenWidth - 2 * r) / (2 * r)
+            x = r + 2 * r * (i - w * nw - w)
+            y = 4 * r * (1 + w)
+            self.Rects.append(pygame.Rect((x,y), (a,a)))
 
     def get_Ei(self):
         Ei = 0
@@ -124,6 +129,20 @@ class System():
                 self.L[i] *= -1
                 self.E += dE
 
+    def redraw(self):
+        System.win.fill(System.bg_color)
+
+        # draw spins as squares of sides 20 pixels
+        for i, (spin, rect) in enumerate(zip(self.L, self.Rects)):
+            pygame.draw.rect(System.win, System.spin_colours[spin], rect)
+
+        # draw data for system
+        energy_counter = System.font_local.render('<E> = {:.4f}  |  Epoch: {}'.format(self.Ebar, self.epoch), 1, (0, 60, 0))
+
+        System.win.blit(energy_counter, (5, 5))
+
+        pygame.display.update()
+
 sys = System()
 
 running = True
@@ -133,11 +152,12 @@ while iter < iterations and running:
     sys.step()
 
     if iter % 10000 == 0:
-        redraw(sys.L)
+        sys.redraw()
     if iter % System.cache_limit == 0: # Reset cache every epoch
         epoch = iter // System.cache_limit
         sys.reset_cache(epoch, iter)
-        print('Cache reset... epoch:',epoch,'Current average: <E>={}'.format(sys.Ebar))
+        sys.epoch = epoch
+        print('Cache reset... epoch:', epoch,'Current average: <E>={}'.format(sys.Ebar))
     iter+=1
 
 print('Terminated at iteration {} of {} ({}% complete)'.format(iter, iterations, 100*iter/iterations))
