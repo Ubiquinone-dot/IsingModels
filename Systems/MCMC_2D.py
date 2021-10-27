@@ -28,7 +28,7 @@ R = 8.314       # Na * kB
 
 # Hyperparameters
 J = 1     # coupling constant
-T = 1.5
+T = 0.5
 
 # Useful variables
 b = 1/T
@@ -45,21 +45,22 @@ print('Expected average energy for the lattice (N * -J tanh(b*J)): {}'.format(-(
 
 class System():
     # biased initialization, text box
-    algorithm = '2D MCMC Sampling'
+    algorithm = 'MCMC (Metropolis) Sampling'
 
     cache_limit = int(1e+6)  # Maximum size of cache before reset
-    n = 50  # n (columns)
+    lattice_area = 800
+    n = 200  # n (columns)
     m = n   # m (rows)
-    a = 20  # square side length
-    p = 2*a # padding
+    a = lattice_area//n # square side length
+    p = 10 # padding
 
     pygame.init()
-    pygame.display.set_caption('1D-Ising model | ' + algorithm + ' Implementation')
+    pygame.display.set_caption('2D-Ising model | ' + algorithm + ' Implementation')
     pygame.display.set_icon(pygame.image.load('imgs/molecules.png'))
     font_size = 16
     font_local = pygame.font.SysFont('bahnschrift', font_size)
     bg_color = (25, 25, 25) # (250, 250, 250)
-    ScreenWidth, ScreenHeight = ScreenDims = (2*p + n*a, 2*p + font_size + m*a)  # (1800, 920)
+    ScreenWidth, ScreenHeight = ScreenDims = (2*p + lattice_area, 2*p + font_size + lattice_area)  # (1800, 920)
     win = pygame.display.set_mode(ScreenDims)
     colours = [(166, 166, 166), (0, 50, 50), (163, 0, 30)]  # [0] for pen, [1] for spin 1, [2] for spin -1
     counter_width = 75
@@ -149,6 +150,36 @@ class System():
                 self.E += dE
                 self.B += 2*self.L[i, j] / self.N
 
+    def jump(self):
+        # Calculate properties wanted
+        self.sE += self.E
+        self.sB += self.B
+
+        # Walk in space of states
+        c = 1
+        mutot = 0
+        i, j = np.random.randint(c+1, self.n-c-1), np.random.randint(c+1, self.m-c-1)
+
+        # top and bottom part of square, sum over the interactions
+        for x in range(-c, c+1):
+            mutot += self.L[i+x,j-c] * self.L[i+x,j-c-1] + self.L[i+x,j+c] * self.L[i+x,j+c+1]
+        # sides of square
+        for y in range(-c, c+1):
+            mutot += self.L[i-c-1,j+y] * self.L[i-c,j+y] + self.L[i+c,j+y] * self.L[i+c+1,j+y]
+        dE = 2*J*mutot
+        print(dE, np.exp(-b * dE), self.get_Ei())
+        if dE <= 0:
+            self.L[i-c:i+c,j-c:j+c] *= -1
+            self.E += dE
+            print('JUMPED <<<<',np.exp(-b * dE), self.get_Ei())
+        else:
+            r = np.random.uniform(0, 1)
+            if r <= np.exp(-b * dE):
+                self.L[i-c:i+c,j-c:j+c] *= -1
+                self.E += dE
+                self.B += 2*self.L[i, j] / self.N
+                print('JUMPED <<<<',np.exp(-b * dE), self.get_Ei())
+
     def redraw(self):
         System.win.fill(System.bg_color)
 
@@ -158,13 +189,13 @@ class System():
                 pygame.draw.rect(System.win, System.colours[self.L[i, j]], self.rects[i][j])
 
         # draw data for system
-        energy_counter = System.font_local.render('T = {}K<B> = {:.4f} | Epoch: {} | E={:.4f}, <Ei>={:.4f}, <E>={:.4f}'.format(
+        energy_counter = System.font_local.render('T = {}K | Lattice size = {} | Epoch: {} | <B> = {:.4f} | E/N={:.4f}, <E>/N={:.4f}'.format(
                                                                                                 T,
-                                                                                                self.Bbar,
+                                                                                                self.size,
                                                                                                 self.epoch,
-                                                                                                self.E,
-                                                                                                self.sE/System.cache_limit,
-                                                                                                self.Ebar),
+                                                                                                self.Bbar,
+                                                                                                self.E/self.N,
+                                                                                                self.Ebar/self.N),
                                                                                                 1, System.colours[0])
 
         System.win.blit(energy_counter, (5, 5))
